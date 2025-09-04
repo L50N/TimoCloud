@@ -1,105 +1,51 @@
 services:
-  timocloud-core:
-    container_name: timocloud-core
+  timocloud:
+    container_name: timocloud-main
     build:
       context: .
       dockerfile: Dockerfile
       target: runner
     environment:
-      - TIMOCLOUD_MODULE=CORE
-      - JAVA_OPTS=-Xmx2g -Xms512m
       - TZ=Europe/Berlin
+      - JAVA_OPTS_CORE=-Xmx1g -Xms256m -XX:+UseG1GC -XX:+UseStringDeduplication
+      - JAVA_OPTS_BASE=-Xmx512m -Xms128m -XX:+UseG1GC -XX:+UseStringDeduplication
+      - JAVA_OPTS_CORD=-Xmx256m -Xms64m -XX:+UseG1GC -XX:+UseStringDeduplication
     ports:
       - "7777:7777"
       - "7778:7778"
+      - "7779:7779"
+      - "7780:7780"
+      - "25565:25565"
     volumes:
-      - timocloud-core-data:/home/timocloud/storage
-      - timocloud-core-logs:/home/timocloud/logs
+      - timocloud-data:/home/timocloud/storage
+      - timocloud-logs:/home/timocloud/logs
+      - timocloud-templates:/home/timocloud/templates
+      - timocloud-temporary:/home/timocloud/temporary
       - timocloud-core-config:/home/timocloud/core
+      - timocloud-base-config:/home/timocloud/base
+      - timocloud-cord-config:/home/timocloud/cord
     networks:
       - timocloud-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7777/health"]
+      test: ["CMD", "sh", "-c", "pgrep -f 'TimoCloud.jar' > /dev/null"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
 
-  timocloud-base:
-    container_name: timocloud-base
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runner
-    environment:
-      - TIMOCLOUD_MODULE=BASE
-      - JAVA_OPTS=-Xmx1g -Xms256m
-      - TZ=Europe/Berlin
-      - CORE_HOST=timocloud-core
-    ports:
-      - "7779:7779"
-    volumes:
-      - timocloud-base-data:/home/timocloud/storage
-      - timocloud-base-logs:/home/timocloud/logs
-      - timocloud-base-templates:/home/timocloud/templates
-      - timocloud-base-temporary:/home/timocloud/temporary
-      - timocloud-base-config:/home/timocloud/base
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - timocloud-network
-    depends_on:
-      timocloud-core:
-        condition: service_healthy
-    restart: unless-stopped
-
-  timocloud-cord:
-    container_name: timocloud-cord
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runner
-    environment:
-      - TIMOCLOUD_MODULE=CORD
-      - JAVA_OPTS=-Xmx512m -Xms128m
-      - TZ=Europe/Berlin
-      - CORE_HOST=timocloud-core
-    ports:
-      - "25565:25565"
-      - "7780:7780"
-    volumes:
-      - timocloud-cord-data:/home/timocloud/storage
-      - timocloud-cord-logs:/home/timocloud/logs
-      - timocloud-cord-config:/home/timocloud/cord
-    networks:
-      - timocloud-network
-    depends_on:
-      timocloud-core:
-        condition: service_healthy
-    restart: unless-stopped
-
 volumes:
-  timocloud-core-data:
+  timocloud-data:
     driver: local
-  timocloud-core-logs:
+  timocloud-logs:
+    driver: local
+  timocloud-templates:
+    driver: local
+  timocloud-temporary:
     driver: local
   timocloud-core-config:
     driver: local
-  
-  timocloud-base-data:
-    driver: local
-  timocloud-base-logs:
-    driver: local
-  timocloud-base-templates:
-    driver: local
-  timocloud-base-temporary:
-    driver: local
   timocloud-base-config:
-    driver: local
-  
-  timocloud-cord-data:
-    driver: local
-  timocloud-cord-logs:
     driver: local
   timocloud-cord-config:
     driver: local
@@ -110,4 +56,3 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/16
-        

@@ -1,15 +1,18 @@
-.PHONY: help build up down logs clean restart status
+.PHONY: help build up down logs clean restart status shell
 
 help:
-	@echo "  build          - Build all Docker images"
-	@echo "  up             - Start all services"
-	@echo "  down           - Stop all services"
-	@echo "  logs           - Show logs from all services"
-	@echo "  restart        - Restart all services"
-	@echo "  status         - Show status of all services"
-	@echo "  clean          - Clean up containers and volumes"
+	@echo "  build          - Build Docker image"
+	@echo "  up             - Start TimoCloud container"
+	@echo "  down           - Stop TimoCloud container"
+	@echo "  logs           - Show logs from container"
+	@echo "  restart        - Restart container"
+	@echo "  status         - Show container status"
+	@echo "  shell          - Open shell in container"
+	@echo "  screen-core    - Connect to core screen session"
+	@echo "  screen-base    - Connect to base screen session"
+	@echo "  screen-cord    - Connect to cord screen session"
+	@echo "  clean          - Clean up container and volumes"
 	@echo "  clean-all      - Clean up everything including images"
-	@echo "  shell  	    - Open shell in container"
 
 build:
 	docker compose build --no-cache
@@ -31,6 +34,15 @@ status:
 
 shell:
 	docker compose exec timocloud-main /bin/bash
+
+screen-core:
+	docker compose exec timocloud-main screen -x core
+
+screen-base:
+	docker compose exec timocloud-main screen -x base
+
+screen-cord:
+	docker compose exec timocloud-main screen -x cord
 
 clean:
 	docker compose down -v
