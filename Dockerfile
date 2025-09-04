@@ -1,46 +1,66 @@
-#
-#  ______  ____  ___ ___   ___      __  _       ___   __ __  ___   
-# |      Tl    j|   T   T /   \    /  ]| T     /   \ |  T  T|   \  
-# |      | |  T | _   _ |Y     Y  /  / | |    Y     Y|  |  ||    \ 
-# l_j  l_j |  | |  \_/  ||  O  | /  /  | l___ |  O  ||  |  ||  D  Y
-#   |  |   |  | |   |   ||     |/   \_ |     T|     ||  :  ||     |
-#   |  |   j  l |   |   |l     !\     ||     |l     !l     ||     |
-#   l__j  |____jl___j___j \___/  \____jl_____j \___/  \__,_jl_____j
-#                                                                  
-# Author of this dockerfile: https://github.com/L50N
+FROM maven:3.9.4-eclipse-temurin-17-alpine AS builder
 
-FROM ubuntu:20.04
+WORKDIR /build
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+COPY pom.xml .
+COPY TimoCloud-API/pom.xml TimoCloud-API/
+COPY TimoCloud-Universal/pom.xml TimoCloud-Universal/
+COPY TimoCloud-Staging/pom.xml TimoCloud-Staging/
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        openjdk-17-jdk-headless \
-        screen \
-        curl \
-        wget \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN mvn dependency:go-offline -B
 
-RUN groupadd -r timocloud \
-    && useradd -r -g timocloud -m -d /home/timocloud -s /bin/bash timocloud \
-    && usermod -aG sudo timocloud \
-    && echo 'timocloud ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+COPY TimoCloud-API/src TimoCloud-API/src
+COPY TimoCloud-Universal/src TimoCloud-Universal/src
+COPY TimoCloud-Staging/src TimoCloud-Staging/src
+
+RUN mvn clean package -B -DskipTests \
+    && ls -la TimoCloud-Universal/target/ \
+    && cp TimoCloud-Universal/target/TimoCloud.jar /build/TimoCloud.jar
+
+FROM eclipse-temurin:17-jre-alpine AS runner
+
+RUN apk add --no-cache \
+    curl \
+    bash \
+    screen \
+    && addgroup -g 1000 timocloud \
+    && adduser -D -s /bin/bash -G timocloud -u 1000 timocloud
+
+RUN mkdir -p /home/timocloud/{storage,logs,templates,temporary,core,base,cord} \
+    && chown -R timocloud:timocloud /home/timocloud
 
 WORKDIR /home/timocloud
 
-COPY . .
+COPY --from=builder /build/TimoCloud.jar ./TimoCloud.jar
+COPY --chown=timocloud:timocloud TimoCloud-Universal/src/main/resources/ ./resources/
 
-RUN rm -rf /home/timocloud/TimoCloud.jar
-RUN wget https://jenkins.timo.cloud/job/TimoCloud/job/master/lastSuccessfulBuild/artifact/TimoCloud-Universal/target/TimoCloud.jar
+COPY --chown=timocloud:timocloud TimoCloud-Universal/src/main/resources/core/ ./core/
+COPY --chown=timocloud:timocloud TimoCloud-Universal/src/main/resources/base/ ./base/
+COPY --chown=timocloud:timocloud TimoCloud-Universal/src/main/resources/cord/ ./cord/
 
-RUN chown -R timocloud:timocloud /home/timocloud \
-    && chmod 755 TimoCloud.jar
+RUN chmod +x TimoCloud.jar \
+    && chown timocloud:timocloud TimoCloud.jar
 
 USER timocloud
 
-CMD screen -dm -S core java -jar /home/timocloud/TimoCloud.jar --module=CORE && \
-    screen -dm -S base java -jar /home/timocloud/TimoCloud.jar --module=BASE && \
-    screen -dm -S cord java -jar /home/timocloud/TimoCloud.jar --module=CORD && \
-    tail -f /dev/null
+ENV TIMOCLOUD_MODULE=CORE \
+    JAVA_OPTS="-Xmx1g -Xms256m -XX:+UseG1GC -XX:+UseStringDeduplication" \
+    TZ=Europe/Berlin
+
+RUN echo '#!/bin/bash\nif pgrep -f "TimoCloud.jar" > /dev/null; then exit 0; else exit 1; fi' > healthcheck.sh \
+    && chmod +x healthcheck.sh
+
+EXPOSE 7777 7778 7779 7780 25565
+
+RUN echo '#!/bin/bash\n\
+    echo "$TIMOCLOUD_MODULE"\n\
+    echo "Java Options: $JAVA_OPTS"\n\
+    \n\
+    mkdir -p /home/timocloud/${TIMOCLOUD_MODULE,,}\n\
+    mkdir -p /home/timocloud/logs\n\
+    mkdir -p /home/timocloud/storage\n\
+    \n\
+    exec java $JAVA_OPTS -jar /home/timocloud/TimoCloud.jar --module=$TIMOCLOUD_MODULE\n\
+    ' > start.sh && chmod +x start.sh
+
+CMD ["./start.sh"]
