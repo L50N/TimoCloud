@@ -2,16 +2,11 @@ FROM maven:3.9.4-eclipse-temurin-17-alpine AS builder
 
 WORKDIR /build
 
-COPY pom.xml .
 COPY TimoCloud-API/pom.xml TimoCloud-API/
 COPY TimoCloud-Universal/pom.xml TimoCloud-Universal/
 COPY TimoCloud-Staging/pom.xml TimoCloud-Staging/
 
 RUN mvn dependency:go-offline -B
-
-COPY TimoCloud-API/src TimoCloud-API/src
-COPY TimoCloud-Universal/src TimoCloud-Universal/src
-COPY TimoCloud-Staging/src TimoCloud-Staging/src
 
 RUN mvn clean package -B -DskipTests \
     && ls -la TimoCloud-Universal/target/ \
@@ -32,7 +27,6 @@ RUN mkdir -p /home/timocloud/{storage,logs,templates,temporary,core,base,cord} \
 WORKDIR /home/timocloud
 
 COPY --from=builder /build/TimoCloud.jar ./TimoCloud.jar
-COPY --chown=timocloud:timocloud TimoCloud-Universal/src/main/resources/ ./resources/
 
 COPY --chown=timocloud:timocloud TimoCloud-Universal/src/main/resources/core/ ./core/
 COPY --chown=timocloud:timocloud TimoCloud-Universal/src/main/resources/base/ ./base/
