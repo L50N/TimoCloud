@@ -7,6 +7,22 @@ WORKDIR /build
 RUN wget -O TimoCloud.jar https://jenkins.timo.cloud/job/TimoCloud/job/master/lastSuccessfulBuild/artifact/TimoCloud-Universal/target/TimoCloud.jar \
     && ls -la TimoCloud.jar
 
+RUN echo '#!/bin/bash\n\
+    echo "Core: $JAVA_OPTS_CORE"\n\
+    echo "Base: $JAVA_OPTS_BASE"\n\
+    echo "Cord: $JAVA_OPTS_CORD"\n\
+    \n\
+    screen -dm -S core bash -c "java $JAVA_OPTS_CORE -jar /home/timocloud/TimoCloud.jar --module=CORE"\n\
+    sleep 5\n\
+    screen -dm -S base bash -c "java $JAVA_OPTS_BASE -jar /home/timocloud/TimoCloud.jar --module=BASE"\n\
+    sleep 5\n\
+    screen -dm -S cord bash -c "java $JAVA_OPTS_CORD -jar /home/timocloud/TimoCloud.jar --module=CORD"\n\
+    \n\
+    screen -ls\n\
+    \n\
+    tail -f /dev/null\n\
+    ' > start.sh && chmod +x start.sh
+
 FROM eclipse-temurin:17-jre-alpine AS runner
 
 RUN apk add --no-cache \
@@ -34,23 +50,6 @@ ENV TZ=Europe/Berlin \
     JAVA_OPTS_CORD="-Xmx256m -Xms64m -XX:+UseG1GC -XX:+UseStringDeduplication"
 
 EXPOSE 7777 7778 7779 7780 25565
-
-# Create startup script
-RUN echo '#!/bin/bash\n\
-    echo "Core: $JAVA_OPTS_CORE"\n\
-    echo "Base: $JAVA_OPTS_BASE"\n\
-    echo "Cord: $JAVA_OPTS_CORD"\n\
-    \n\
-    screen -dm -S core bash -c "java $JAVA_OPTS_CORE -jar /home/timocloud/TimoCloud.jar --module=CORE"\n\
-    sleep 5\n\
-    screen -dm -S base bash -c "java $JAVA_OPTS_BASE -jar /home/timocloud/TimoCloud.jar --module=BASE"\n\
-    sleep 5\n\
-    screen -dm -S cord bash -c "java $JAVA_OPTS_CORD -jar /home/timocloud/TimoCloud.jar --module=CORD"\n\
-    \n\
-    screen -ls\n\
-    \n\
-    tail -f /dev/null\n\
-    ' > start.sh && chmod +x start.sh
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD pgrep -f "TimoCloud.jar" > /dev/null || exit 1

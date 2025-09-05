@@ -29,16 +29,16 @@ status:
 	docker compose ps
 
 shell:
-	docker exec timocloud /bin/bash
+	docker exec timocloud-main /bin/bash
 
 screen-core:
-	docker compose exec timocloud screen -x core
+	docker compose exec timocloud-main screen -x core
 
 screen-base:
-	docker compose exec timocloud screen -x base
+	docker compose exec timocloud-main screen -x base
 
 screen-cord:
-	docker compose exec timocloud screen -x cord
+	docker compose exec timocloud-main screen -x cord
 
 clean:
 	docker compose down -v
