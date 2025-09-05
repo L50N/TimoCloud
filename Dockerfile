@@ -38,9 +38,10 @@ RUN mkdir -p /home/timocloud/storage /home/timocloud/logs /home/timocloud/templa
 WORKDIR /home/timocloud
 
 COPY --from=builder /build/TimoCloud.jar ./TimoCloud.jar
+COPY --from=builder /build/start.sh ./start.sh
 
-RUN chmod +x TimoCloud.jar \
-    && chown timocloud:timocloud TimoCloud.jar
+RUN chmod +x TimoCloud.jar start.sh \
+    && chown timocloud:timocloud TimoCloud.jar start.sh
 
 USER timocloud
 
