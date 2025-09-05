@@ -1,10 +1,9 @@
-.PHONY: help build up down logs clean restart status shell
+.PHONY: help build up down clean restart status shell
 
 help:
 	@echo "  build          - Build Docker image"
 	@echo "  up             - Start TimoCloud container"
 	@echo "  down           - Stop TimoCloud container"
-	@echo "  logs           - Show logs from container"
 	@echo "  restart        - Restart container"
 	@echo "  status         - Show container status"
 	@echo "  shell          - Open shell in container"
@@ -23,9 +22,6 @@ up:
 down:
 	docker compose down
 
-logs:
-	docker compose logs -f
-
 restart:
 	docker compose restart
 
@@ -33,16 +29,16 @@ status:
 	docker compose ps
 
 shell:
-	docker compose exec timocloud-main /bin/bash
+	docker exec timocloud /bin/bash
 
 screen-core:
-	docker compose exec timocloud-main screen -x core
+	docker compose exec timocloud screen -x core
 
 screen-base:
-	docker compose exec timocloud-main screen -x base
+	docker compose exec timocloud screen -x base
 
 screen-cord:
-	docker compose exec timocloud-main screen -x cord
+	docker compose exec timocloud screen -x cord
 
 clean:
 	docker compose down -v
